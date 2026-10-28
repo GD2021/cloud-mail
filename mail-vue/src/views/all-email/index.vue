@@ -15,6 +15,7 @@
                  @jump="jumpContent"
                  @refresh-before="refreshBefore"
                  @right-search="rightSearch"
+                 :highlight-text="appliedSearchText"
                  :type="'all-email'"
 
     >
@@ -62,10 +63,10 @@
     <el-dialog v-model="showBathDelete" :title="$t('clearEmail')" width="335"
                @closed="closedClear">
       <div class="clear-email">
-        <el-input v-model="clearParams.sendName" :placeholder="$t('sender')"/>
-        <el-input v-model="clearParams.subject" :placeholder="$t('subject')"/>
-        <el-input v-model="clearParams.sendEmail" :placeholder="$t('sendEmailAddress')"/>
-        <el-input v-model="clearParams.toEmail" :placeholder="$t('toEmail')"/>
+        <el-input v-model="clearParams.sendName" :placeholder="$t('sender')" @keyup.enter="batchDelete"/>
+        <el-input v-model="clearParams.subject" :placeholder="$t('subject')" @keyup.enter="batchDelete"/>
+        <el-input v-model="clearParams.sendEmail" :placeholder="$t('sendEmailAddress')" @keyup.enter="batchDelete"/>
+        <el-input v-model="clearParams.toEmail" :placeholder="$t('toEmail')" @keyup.enter="batchDelete"/>
         <el-date-picker popper-class="my-date-picker"
                         v-model="clearTime"
                         type="daterange"
@@ -165,6 +166,8 @@ function closedClear() {
   clearTime.value = null
 }
 
+const appliedSearchText = computed(() => params.name || params.subject || params.userEmail || params.accountEmail || '')
+
 const selectTitle = computed(() => {
   if (params.searchType === 'user') return t('user')
   if (params.searchType === 'account') return t('selectEmail')
@@ -192,6 +195,8 @@ function openBathDelete() {
 }
 
 function batchDelete() {
+
+  if (clearLoading.value) return
 
   if (clearTime.value) {
     clearParams.startTime = toUtc(clearTime.value[0]).format("YYYY-MM-DD HH:mm:ss")
@@ -280,16 +285,16 @@ function typeSelectChange() {
 }
 
 function jumpContent(email) {
-  emailStore.contentData.email = email
+  emailStore.contentData.email = emailStore.toContentEmail(email)
   emailStore.contentData.delType = 'physics'
   emailStore.contentData.showStar = false
   emailStore.contentData.showReply = false
-  router.push({name: 'content'})
+  router.push({name: 'content', params: {mailbox: 'all-mail'}})
 }
 
 
 function getEmailList(emailId, size) {
-  return allEmailList({emailId, size, ...params})
+  return emailStore.fetchList(full => allEmailList({emailId, size, full, ...params}))
 }
 
 async function latest() {
@@ -336,6 +341,8 @@ async function latest() {
       if (params.timeSort !== curTimeSort) {
         continue
       }
+
+      emailStore.applyFullList(list)
 
       for (let email of list) {
 
